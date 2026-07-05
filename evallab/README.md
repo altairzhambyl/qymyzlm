@@ -55,6 +55,8 @@ _One comparable metric per track, best first. `measured` = a kazeval runner prod
 | BM25 + fine-tuned reranker (KazQAD paper best pipeline) | KazQADRetrieval | 0.3890 | reported | 2024-04-06 |
 | intfloat/multilingual-e5-large | KazQADRetrieval | 0.3294 | measured | 2026-07-04 |
 | intfloat/multilingual-e5-base | KazQADRetrieval | 0.2785 | measured | 2026-07-05 |
+| kekeront/qymyz-embed-lim-v0-souped | KazQADRetrieval | 0.2077 | measured | 2026-07-05 |
+| sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 | KazQADRetrieval | 0.0005 | measured | 2026-07-05 |
 | intfloat/multilingual-e5-large | KazQADReranking | 0.6943 | measured | 2026-07-04 |
 | intfloat/multilingual-e5-large | KazQAD-HardNeg | — | reported | 2025-12-04 |
 
@@ -73,6 +75,8 @@ _One comparable metric per track, best first. `measured` = a kazeval runner prod
 | BM25 + fine-tuned reranker (KazQAD paper best pipeline) | — | KazQADRetrieval | test | 0.3890 | — | 0.3820 | — | — | — | — | — | — | reported | arXiv:2404.04487 (KazQAD, LREC-COLING 2024) | 2024-04-06 |
 | intfloat/multilingual-e5-large | ab10c1a7 | KazQADRetrieval | test | 0.3294 | 0.2772 | — | — | — | 0.3045 | 0.3831 | 0.4836 | 0.7202 | measured | kazeval.run_retrieval (mteb 2.16.3, encode dtype=float16) | 2026-07-04 |
 | intfloat/multilingual-e5-base | d13f1b27 | KazQADRetrieval | test | 0.2785 | 0.2321 | — | — | — | 0.2568 | 0.3301 | 0.4176 | 0.6449 | measured | kazeval.run_retrieval (mteb 2.16.3, encode dtype=float16) | 2026-07-05 |
+| kekeront/qymyz-embed-lim-v0-souped | dacc18a5 | KazQADRetrieval | test | 0.2077 | 0.1736 | — | — | — | 0.1911 | 0.2676 | 0.3211 | 0.5876 | measured | kazeval.run_retrieval (mteb 2.16.3, encode dtype=float16) | 2026-07-05 |
+| sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 | bf3bf13a | KazQADRetrieval | test | 0.0005 | 0.0005 | — | — | — | 0.0005 | 0.0006 | 0.0005 | 0.0008 | measured | kazeval.run_retrieval (mteb 2.16.3, encode dtype=float16) | 2026-07-05 |
 | intfloat/multilingual-e5-large | ab10c1a7 | KazQADReranking | test | 0.6943 | 0.6226 | — | — | — | 0.6545 | 0.7222 | 0.8917 | 1.0000 | measured | kazeval.run_retrieval (mteb 2.16.3, encode dtype=float16) | 2026-07-04 |
 | intfloat/multilingual-e5-large | — | KazQAD-HardNeg | test | — | — | 0.9090 | 0.8500 | 0.9900 | — | — | — | — | reported | https://huggingface.co/Nurlykhan/kazembed-v5 | 2025-12-04 |
 
