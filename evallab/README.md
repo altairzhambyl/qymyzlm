@@ -1,15 +1,17 @@
 # evallab — Kazakh benchmarking lab (`kazeval`)
 
-Single source of truth for ALL lab numbers: no model claim exists until a runner
-here reproduces it. Every leaderboard row is regenerable from a committed JSON
-record in `results/` — nothing below the markers is ever edited by hand.
+Target: no model claim exists until a runner here reproduces it. Today that holds
+for the KazQAD rows. The only KazMMLU row is older: it comes from the legacy
+`scripts/benchmark_baselines.py` with no raw output retained, and no committed record
+comes from `kazeval.run_kazmmlu` yet. Every leaderboard table is rendered from a
+committed JSON record in `results/`, so nothing below the markers is edited by hand.
 
 ## Tracks
 
 | Track | Tasks | Runner |
 |---|---|---|
 | Embedding / retrieval | `KazQADRetrieval` (full 825,309-passage corpus, comparable to arXiv:2404.04487), `KazQADReranking` + `KazQAD-HardNeg` (deterministic `kazqad-hardneg-bm25-v1` protocol, `kazeval.hardneg`) | `python -m kazeval.run_retrieval` |
-| Generative | `KazMMLU-kk` — Kazakh subset of MBZUAI/KazMMLU, 12 subjects, 9,870 test questions, **3-shot** (dev holds only 3 exemplars/subject; historical "5-shot" numbers were effectively 3-shot) | `python -m kazeval.run_kazmmlu` |
+| Generative | `KazMMLU-kk` — Kazakh subset of MBZUAI/KazMMLU, 12 subjects, 9,870 test questions, **3-shot** (dev holds only 3 exemplars/subject; historical "5-shot" numbers were effectively 3-shot); dataset revision pinned in the task YAML | `python -m kazeval.run_kazmmlu` (lm-eval loglikelihood, a different harness from the legacy record's next-token letter logit) |
 | Safety | `Qorgau-kk` (arXiv:2502.13640) — **no license declared upstream ⇒ eval-only, never train on it**; loaders in `kazeval.qorgau`, judge protocol not wired yet | — |
 
 ## Usage
@@ -46,7 +48,7 @@ _Auto-generated from `evallab/results/*.json` by `python -m kazeval.leaderboard`
 
 ### At a glance
 
-_One comparable metric per track, best first. `measured` = a kazeval runner produced it here; `reported` = external number, shown for context until re-measured in-lab. Full per-record metrics below._
+_One comparable metric per track, best first. `measured` = produced in-lab, by a kazeval runner or the legacy baseline script (see Source below); `reported` = external number, shown for context until re-measured in-lab. Full per-record metrics below._
 
 **Embedding / retrieval (KazQAD)**
 
@@ -64,7 +66,7 @@ _One comparable metric per track, best first. `measured` = a kazeval runner prod
 
 | Model | Task | Accuracy | Provenance | Date |
 |---|---|---|---|---|
-| Qwen/Qwen3-0.6B-Base | KazMMLU-kk | 0.3280 | measured | 2026-04-30 |
+| Qwen/Qwen3-0.6B-Base | KazMMLU-kk | 0.3280 | measured | 2026-04-06 |
 
 ### Full records
 
@@ -84,7 +86,7 @@ _One comparable metric per track, best first. `measured` = a kazeval runner prod
 
 | Model | Revision | Task | Split | acc | Provenance | Source | Date |
 |---|---|---|---|---|---|---|---|
-| Qwen/Qwen3-0.6B-Base | — | KazMMLU-kk | test | 0.3280 | measured | qymyzlm README baseline study (scripts/benchmark_baselines.py) | 2026-04-30 |
+| Qwen/Qwen3-0.6B-Base | — | KazMMLU-kk | test | 0.3280 | measured | scripts/benchmark_baselines.py at commit 78abafb (first committed there; no raw output) | 2026-04-06 |
 
 ### Safety (Qorgau)
 

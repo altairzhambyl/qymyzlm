@@ -1,0 +1,13 @@
+{
+  "model": "Qwen/Qwen3-0.6B-Base",
+  "revision": null,
+  "task": "KazMMLU-kk",
+  "protocol": "Legacy script, not kazeval.run_kazmmlu. KazMMLU Kazakh-language subset (12 subjects, 9,870 test questions), 3-shot from dev (historically labeled 5-shot; dev has only 3 exemplars per subject), next-token letter-logit argmax, right-truncated at 2048 tokens, fp16, RTX 2070. Dataset and model revisions not pinned; raw output not retained; the current script truncates differently, so this number is not exactly reproducible.",
+  "split": "test",
+  "metrics": {
+    "acc": 0.328
+  },
+  "provenance": "measured",
+  "source": "scripts/benchmark_baselines.py at commit 78abafb (first committed there; no raw output)",
+  "date": "2026-04-06"
+}

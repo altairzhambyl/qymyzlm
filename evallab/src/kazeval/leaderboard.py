@@ -7,9 +7,9 @@ Regenerate after every new record::
     python -m kazeval.leaderboard
 
 One markdown table per track (embedding/retrieval, generative, safety), with a
-provenance column: ``measured`` rows were produced by a kazeval runner in this
-repo; ``reported`` rows are copied from external sources and await in-lab
-reproduction.
+provenance column: ``measured`` rows were produced in-lab, by a kazeval runner or
+this repo's baseline script (the Source column says which); ``reported`` rows are
+copied from external sources and await in-lab reproduction.
 """
 
 import argparse
@@ -147,9 +147,10 @@ def render_headline(records: list[ResultRecord]) -> str:
     """Scannable 'At a glance' block: one comparable metric per track, best first."""
     blocks: list[str] = [
         "### At a glance",
-        "_One comparable metric per track, best first. `measured` = a kazeval runner "
-        "produced it here; `reported` = external number, shown for context until "
-        "re-measured in-lab. Full per-record metrics below._",
+        "_One comparable metric per track, best first. `measured` = produced in-lab, by a "
+        "kazeval runner or the legacy baseline script (see Source below); `reported` = "
+        "external number, shown for context until re-measured in-lab. Full per-record "
+        "metrics below._",
     ]
     for title, task_ids in TRACKS:
         if title not in HEADLINE_METRIC:

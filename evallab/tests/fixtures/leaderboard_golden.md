@@ -2,7 +2,7 @@ _Auto-generated from `evallab/results/*.json` by `python -m kazeval.leaderboard`
 
 ### At a glance
 
-_One comparable metric per track, best first. `measured` = a kazeval runner produced it here; `reported` = external number, shown for context until re-measured in-lab. Full per-record metrics below._
+_One comparable metric per track, best first. `measured` = produced in-lab, by a kazeval runner or the legacy baseline script (see Source below); `reported` = external number, shown for context until re-measured in-lab. Full per-record metrics below._
 
 **Embedding / retrieval (KazQAD)**
 
