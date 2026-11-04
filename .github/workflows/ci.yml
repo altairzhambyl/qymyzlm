@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      CUDA_VISIBLE_DEVICES: ""
+      HF_HUB_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install from the lockfile
+        run: uv sync --all-packages --all-extras --frozen
+      - name: Lint
+        run: make lint
+      - name: Test (offline, CPU)
+        run: make test
+      - name: Leaderboard is not stale
+        run: PYTHONPATH= .venv/bin/python -m kazeval.leaderboard --check
