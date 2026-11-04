@@ -121,6 +121,34 @@ def test_markdown_table_separates_measured_from_reported() -> None:
     assert "Llama-3.1-70B" in reported_part
 
 
+def test_dataset_loading_is_pinned(monkeypatch) -> None:
+    calls: list[dict] = []
+
+    def fake_names(path: str, **kwargs) -> list[str]:
+        calls.append(kwargs)
+        return ["Biology (High School in kaz)", "Biology (High School in rus)"]
+
+    def fake_load(path: str, name: str, **kwargs) -> dict:
+        calls.append(kwargs)
+        return {"test": [{"Question": "q"}], "dev": [{"Question": "d"}]}
+
+    monkeypatch.setattr(bb, "get_dataset_config_names", fake_names)
+    monkeypatch.setattr(bb, "load_dataset", fake_load)
+    test, dev = bb.load_kazmmlu_kazakh()
+    assert len(test) == len(dev) == 1
+    assert test[0]["_config"] == "Biology (High School in kaz)"
+    assert calls == [{"revision": bb.KAZMMLU_REVISION}] * 2
+
+
+def test_task_templates_pin_the_same_dataset_revision() -> None:
+    repo = SCRIPTS_DIR.parent
+    for template in (
+        repo / "src/kazllm/eval/tasks/kazmmlu_kaz/_kazmmlu_kaz_template_yaml",
+        repo / "evallab/src/kazeval/lm_eval_tasks/kazmmlu_kaz/_kazmmlu_kaz_template_yaml",
+    ):
+        assert f"revision: {bb.KAZMMLU_REVISION}" in template.read_text(encoding="utf-8")
+
+
 def test_qlora_script_imports_and_detects_precision_capability() -> None:
     """qlora_continual must import without downloads; bf16 use is capability-gated."""
     qlora = _load_script("qlora_continual")
