@@ -320,7 +320,8 @@ def markdown_table(results, n_shot=3):
                 f"| {r['fertility']} "
                 f"| {r['speed_tok_s']} |"
             )
-    lines.append("| Random baseline | — | ~25% (4-5 options) | — | — |")
+    # Uniform guess at KAZMMLU_REVISION: (7263/4 + 2607/5) / 9870 = 23.68%.
+    lines.append("| Random guess (`computed`, not run) | — | ~23.7% | — | — |")
 
     lines += [
         "",

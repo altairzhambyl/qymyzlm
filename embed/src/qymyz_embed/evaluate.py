@@ -1,4 +1,4 @@
-"""Evaluation shim — ALL numbers come from evallab/ runners (package `kazeval`).
+"""Evaluation shim — embed's numbers come from evallab/ runners (package `kazeval`).
 
 embed/ deliberately contains NO evaluation logic (embed/CLAUDE.md hard constraint:
 "Every eval number comes from evallab/ runners — never self-reported ad-hoc"). This shim

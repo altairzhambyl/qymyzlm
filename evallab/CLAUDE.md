@@ -1,7 +1,8 @@
-# evallab/ — benchmarking lab (single source of truth for ALL numbers)
+# evallab/ — benchmarking lab (leaderboard records; runner-backed for measured KazQAD only)
 
 ## Goal
-No model claim exists until a runner here reproduces it. Tracks:
+Target: no model claim exists until a runner here reproduces it. Today that holds for `measured`
+KazQAD records only; the KazMMLU record is legacy-script and `reported` records are others' numbers. Tracks:
 1. **Embedding/retrieval** — KazQAD (planka: off-the-shelf mE5-large, re-measured by our runners; the cited card "MRR 0.909" is [UNVERIFIED], protocol-sensitive),
    kk-MTEB task classes (KazQADRetrieval, KazQADReranking) written here first, then PR'd
    upstream to embeddings-benchmark/mteb — the upstream merge is the deliverable.

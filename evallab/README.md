@@ -1,7 +1,8 @@
 # evallab — Kazakh benchmarking lab (`kazeval`)
 
 Target: no model claim exists until a runner here reproduces it. Today that holds
-for the KazQAD rows. The only KazMMLU row is older: it comes from the legacy
+for the `measured` KazQAD rows (`reported` rows are other people's numbers, and the
+`qymyz-embed` model itself is not public). The only KazMMLU row is older: it comes from the legacy
 `scripts/benchmark_baselines.py` with no raw output retained, and no committed record
 comes from `kazeval.run_kazmmlu` yet. Every leaderboard table is rendered from a
 committed JSON record in `results/`, so nothing below the markers is edited by hand.

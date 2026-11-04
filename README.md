@@ -1,6 +1,6 @@
 # QymyzLM
 
-**Reproducible Kazakh language models.** KazQAD numbers here come from an open runner with the protocol saved in the record, so you can re-run them. KazMMLU numbers are older script runs and are labelled as such. Every number is `measured` (we ran it) or `reported` (someone else's number, shown for context, never as our own).
+**Reproducible Kazakh language models.** `measured` KazQAD numbers on public models come from an open runner with the protocol saved in the record, so you can re-run them. The `qymyz-embed` fine-tune's row used the same runner, but that model is not public, so you cannot. KazMMLU numbers are older script runs and are labelled as such. Every model score is `measured` (we ran it) or `reported` (someone else's number, shown for context, never as our own).
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.3+-EE4C2C?logo=pytorch&logoColor=white)
@@ -34,19 +34,19 @@ This is the point of the whole repo. Every measured KazQAD number comes from a `
 | KazQAD retrieval — full 825,309-passage corpus | NDCG@10 | **0.329** | 0.389 — KazQAD paper's tuned pipeline |
 | KazQAD reranking — pinned hard-neg protocol | MRR@10 | **0.654** | 0.909 — kazembed-v5 card — **unverifiable** (protocol unpublished) |
 
-The widely-cited "mE5-large MRR 0.909 on KazQAD" is **unverifiable**: the candidate pools behind it were never published, and the successor model card reports mE5-large at **0.449** under a same-named setting. A number without a reproducible protocol isn't wrong — it's uncheckable, which for a benchmark is worse. Under our open, pinned protocol (`kazqad-hardneg-bm25-v1`: 100 BM25 candidates, fixed corpus revision), off-the-shelf mE5-large scores **MRR@10 0.654**. Turning uncheckable folklore into numbers you can re-run is why this repo exists. (Full-corpus NDCG@10 0.329 sits honestly *below* the paper's tuned pipeline; off-the-shelf, untuned, reported as-is.)
+The widely-cited "mE5-large MRR 0.909 on KazQAD" is **unverifiable**: the candidate pools behind it were never published. The [successor model card](https://huggingface.co/shyngys879/kazakh-e5-rag-embedding/blob/86bcfb6ab7404a14d173a484f578fbb787dec226/README.md) shows how far the protocol alone moves it, reporting mE5-large at **0.449** under `OfficialKazQAD-HardTFIDF99` and **0.9189** under `KazQAD-100 local`, both with 100 candidates per query (`reported`). A number without a reproducible protocol isn't wrong — it's uncheckable, which for a benchmark is worse. Under our open, pinned protocol (`kazqad-hardneg-bm25-v1`: 100 BM25 candidates, fixed corpus revision), off-the-shelf mE5-large scores **MRR@10 0.654**. Turning uncheckable folklore into numbers you can re-run is why this repo exists. (Full-corpus NDCG@10 0.329 sits honestly *below* the paper's tuned pipeline; off-the-shelf, untuned, reported as-is.)
 
 ---
 
 ## Track 1 — Kazakh embeddings (active)
 
-**Goal:** the best Kazakh text-embedding model. **Bar:** beat off-the-shelf mE5-large on KazQAD under evallab's pinned protocol, then #1 on kk-MTEB. The first fine-tune (Less-is-More on mE5-base, 0.5/0.5 weight soup) targeted **≥ +2.0 NDCG@10** and **regressed**: full-corpus KazQAD NDCG@10 **0.2077**, below its own base mE5-base at 0.2785 and mE5-large at 0.3294 (`measured`, `kazeval.run_retrieval`, records in [`evallab/results/`](evallab/results/)). Leading hypothesis, untested: KazParC translation pairs train cross-lingual alignment rather than Kazakh passage retrieval.
+**Goal:** the best Kazakh text-embedding model. **Bar:** beat off-the-shelf mE5-large on KazQAD under evallab's pinned protocol, then #1 on kk-MTEB. The first fine-tune (Less-is-More on mE5-base, 0.5/0.5 weight soup) targeted **≥ +2.0 NDCG@10** and **regressed**: full-corpus KazQAD NDCG@10 **0.2077**, below its own base mE5-base at 0.2785 and mE5-large at 0.3294 (`measured`, `kazeval.run_retrieval`, records in [`evallab/results/`](evallab/results/)). `kekeront/qymyz-embed-lim-v0-souped` is not public (HTTP 401 without a token), so only the two mE5 numbers can be re-run from outside. Leading hypothesis, untested: KazParC translation pairs train cross-lingual alignment rather than Kazakh passage retrieval.
 
 ## Track 2 — Kazakh SLM ≤600M (exploratory)
 
 **Goal:** a sub-1B-active model competitive on KazMMLU. **Levers:** QLoRA continual pretraining · Engram sparse n-gram memory (0 extra FLOPs) · Kazakh SFT · test-time scaling. Reachability on free compute is an **open question**, gated by a token-budget study before any paid run.
 
-Generative baselines — KazMMLU 3-shot, 9,870 Kazakh questions ([MBZUAI/KazMMLU](https://huggingface.co/datasets/MBZUAI/KazMMLU)). Unmarked rows are `measured` in April 2026 with the legacy `scripts/benchmark_baselines.py` (fp16, RTX 2070, unpinned revisions), **not a `kazeval` runner**. Raw output was not retained, and the current script truncates long prompts differently, so these rows are not exactly reproducible. *Italic* = reported (different harness, context only). The dev split holds only 3 exemplars/subject, so earlier "5-shot" runs were effectively **3-shot**.
+Generative baselines — KazMMLU 3-shot, 9,870 Kazakh questions ([MBZUAI/KazMMLU](https://huggingface.co/datasets/MBZUAI/KazMMLU)). Unmarked model rows are `measured` in April 2026 with the legacy `scripts/benchmark_baselines.py` (fp16, RTX 2070, unpinned revisions), **not a `kazeval` runner**. Raw output was not retained, and the current script truncates long prompts differently, so these rows are not exactly reproducible. *Italic* = reported (different harness, context only). The dev split holds only 3 exemplars/subject, so earlier "5-shot" runs were effectively **3-shot**. The random row is arithmetic, not a run: at dataset revision `567b9e3f`, 7,263 questions have 4 options and 2,607 have 5, so uniform guessing scores (7,263/4 + 2,607/5) / 9,870 = 23.68%.
 
 | Model | Params | KazMMLU 3-shot | Tok/word |
 |-------|--------|:----:|:----:|
@@ -56,15 +56,15 @@ Generative baselines — KazMMLU 3-shot, 9,870 Kazakh questions ([MBZUAI/KazMMLU
 | Gemma3-1B-it | 1.0B | 28.7% | 3.27 |
 | Llama-3.2-1B | 1.24B | 25.1% | 4.80 |
 | Ekitil-Qwen3-600M (Kazakh-adapted Qwen) | 0.67B | 23.7% | 1.43 |
-| Random baseline | — | 25.0% | — |
+| Random guess (`computed`, not run) | — | ~23.7% | — |
 | *Sherkala-Chat-8B* | *8B* | *41.4%* | *2.04* |
 | *Llama-3.1-70B* | *70B* | *55.2%* | *4.73* |
 
-**Takeaways (n=9,870, legacy harness):** Qwen3-0.6B scores highest below 1.5B parameters; Qwen2.5-1.5B (1.54B) is higher at 34.3%. Ekitil — a Kazakh-adapted Qwen with an elite tokenizer (1.43 tok/word) — still scores below the 25% random reference: **a good tokenizer is not knowledge**. Changing the harness moved the same base model by 2.1pp (next section), so small gaps in this table are not established differences. The gap to Sherkala-8B is cross-protocol until Sherkala is re-run through our runner.
+**Takeaways (n=9,870, legacy harness):** Qwen3-0.6B scores highest below 1.5B parameters; Qwen2.5-1.5B (1.54B) is higher at 34.3%. Ekitil — a Kazakh-adapted Qwen with an elite tokenizer (1.43 tok/word) — scores at chance (23.7% vs about 23.7%): **a good tokenizer is not knowledge**. Changing the harness moved the same base model by 2.1pp (next section), so small gaps in this table are not established differences. The gap to Sherkala-8B is cross-protocol until Sherkala is re-run through our runner.
 
 ### Generative track: April 2026 runs
 
-Exploratory QLoRA and Engram runs on Qwen3-0.6B-Base. **No gain from them is established.** Rows use different sample sizes and harnesses, so compare only rows with the same n and harness. All are 3-shot in effect; the kernels print "5-shot". Intervals are Wilson 95%, computed from the rounded accuracy.
+Exploratory QLoRA and Engram runs on Qwen3-0.6B-Base. **No gain from them is established.** Rows use different sample sizes and harnesses, so compare only rows with the same n and harness. All are 3-shot in effect; the kernels print "5-shot". Intervals are Wilson 95%, computed from the rounded accuracy. The kernels named below are private on Kaggle, so readers cannot check their logs; the Evidence column records where each number came from, not something you can verify yourself.
 
 | Config | KazMMLU | n | Questions | 95% CI | Harness | Evidence | Status |
 |--------|:------:|:-:|-----------|:-----:|---------|----------|--------|
@@ -78,8 +78,8 @@ Exploratory QLoRA and Engram runs on Qwen3-0.6B-Base. **No gain from them is est
 
 How to read this:
 
-- **35.5% vs 31.5% is not a KazMMLU result.** Both cover one subject of twelve, their intervals overlap, and the 35.5% output did not survive. Do not cite it as a +4pp lift.
-- **The "catastrophic forgetting" story and the Engram delta are withdrawn.** The kernels' printed "-4.5pp" compares 31.0% (n=9,870) with 35.5% (n=200), and the 30.0% vs 31.5% drop mixes the same two sample sizes. The ablation block in `engram-dream`'s `results.json` hard-codes 31.5 and 35.5; only its 31.0 was measured in that run. Among the full-set 4-bit numbers (30.7, 30.0, 31.0) the spread is 1.0pp with intervals near ±0.9pp, so neither a gain nor a loss is established (inferred, because 30.0% has no surviving output). Session 1 has no full-set number at all.
+- **35.5% vs 31.5% is not a KazMMLU result.** Both cover one subject of twelve (inferred for 35.5%), their intervals overlap, and the 35.5% output did not survive. Do not cite it as a +4pp lift.
+- **The "catastrophic forgetting" story and the Engram delta are withdrawn.** The kernels' printed "-4.5pp" compares 31.0% (n=9,870) with 35.5% (n=200, inferred from `n_eval=200` in the notebook code), and the 30.0% vs 31.5% drop mixes the same two sample sizes (inferred). The ablation block in `engram-dream`'s `results.json` hard-codes 31.5 and 35.5; only its 31.0 was measured in that run. Among the full-set 4-bit numbers (30.7, 30.0, 31.0) the spread is 1.0pp with intervals near ±0.9pp, so neither a gain nor a loss is established (inferred, because 30.0% has no surviving output). Session 1 has no full-set number at all.
 - **The harness matters.** The same base model differs by 2.1pp between 32.8% and 30.7%, which is more than the spread above.
 - **Perplexity is not reported as a result.** The 8.87 and 3.89 figures come from the first 50 long Kazakh Wikipedia articles, the same split session 1 streamed for training, so overlap is very likely (inferred from code). The 7.68 base figure uses 200 HPLT documents and the 3.8 Engram figure uses 200 Wikipedia articles, so those are not comparable either.
 
