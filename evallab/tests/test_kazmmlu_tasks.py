@@ -100,6 +100,10 @@ def test_subject_yamls_pin_exact_hf_config_names():
 def test_template_pins_3_shot_from_dev():
     template = (KAZMMLU_DIR / "_kazmmlu_kaz_template_yaml").read_text(encoding="utf-8")
     assert "dataset_path: MBZUAI/KazMMLU" in template
+    pinned = yaml.safe_load(
+        "\n".join(line for line in template.splitlines() if "!function" not in line)
+    )
+    assert pinned["dataset_kwargs"]["revision"] == "567b9e3fea223afc7d7ea98f7255c4c5b140f91a"
     assert f"num_fewshot: {MAX_FEWSHOT}" in template
     assert "fewshot_split: dev" in template
     assert "output_type: multiple_choice" in template

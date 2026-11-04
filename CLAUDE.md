@@ -7,6 +7,9 @@ study + QLoRA pipeline") the working approach is: benchmark existing small model
 QLoRA-continual-pretrain the best one (Qwen3-0.6B-Base, 32.8% baseline) on Kazakh data, and graft
 **Engram** sparse N-gram memory onto it. Canonical target: beat Qwen3-0.6B's 32.8% KazMMLU
 3-shot (aim ≥36%); ceiling reference Sherkala-Chat-8B at 41.4% (reported, cross-protocol).
+32.8% is n=9,870 on the legacy fp16 RTX 2070 harness; a 4-bit T4 run gave the same model 30.7%.
+Compare only within one harness and full question set: README "Generative track: April 2026 runs"
+records which numbers are 200-question subsets or lack surviving output.
 Shot count is **dev-limited**: KazMMLU's dev split has only 3 exemplars per subject, so 3-shot is
 the maximum with subject-matched shots — runs previously labeled "5-shot" were effectively 3-shot.
 
@@ -46,6 +49,7 @@ src/kazllm/
 └── utils/                      # io.py (atomic JSON, shard paths), logging.py (rank-aware), seed.py
 scripts/
 ├── benchmark_baselines.py      # KazMMLU 3-shot bench: accuracy + fertility + speed (PEFT-aware)
+├── eval_kazmmlu_full.py        # base vs adapters, full 9,870, same harness; has CPU --dry-run
 └── qlora_continual.py          # 4-bit QLoRA continual PT on streamed Kazakh data (Kaggle T4 OK)
 configs/
 ├── eval/default.yaml           # benchmark list + dtype defaults (mirrors eval/benchmarks.py)
@@ -63,12 +67,12 @@ no data pipeline, no train.py). Do not reference those paths from code — see t
 uv sync --all-packages --all-extras   # or: make install
 
 make lint          # .venv/bin/ruff check + format --check on src, scripts, tests
-make test          # PYTHONPATH= .venv/bin/python -m pytest tests -q  (CPU-only, no downloads;
+make test          # PYTHONPATH= .venv/bin/python -m pytest -q, all testpaths (CPU-only, no downloads;
                    # PYTHONPATH cleared — ROS dist-packages break pytest plugin autoload)
 
 # Real pipelines (these DO download models/datasets — never run just to "test")
 make benchmark        # KazMMLU 3-shot baselines (scripts/benchmark_baselines.py)
-make benchmark-quick  # same, 100 questions per model
+make benchmark-quick  # same, first 100 rows (all Biology): smoke test, never a score
 make qlora            # QLoRA continual PT (scripts/qlora_continual.py), TOKENS=100_000_000 default
 ```
 
@@ -83,9 +87,10 @@ Ad-hoc invocations use the workspace venv directly: `.venv/bin/python scripts/be
 - **Engram q/k/v projections small-init (std 0.01)** — early training is not disrupted
 - **canonical_map defaults to identity** — updated only by tokenizer compression
 - **Fertility target: <2.0** (SozKZ reference baseline)
-- **KazMMLU 3-shot (dev-limited)** is the primary evaluation metric; all published numbers come
-  from `evallab/` runners. Never label results "5-shot": the dev split has only 3 exemplars per
-  subject, and lm-eval's first_n sampler hard-fails at num_fewshot=5
+- **KazMMLU 3-shot (dev-limited)** is the primary evaluation metric. New published numbers must come
+  from `evallab/` runners or `scripts/eval_kazmmlu_full.py`, on all 9,870 questions, with n and
+  harness stated. Never label results "5-shot": the dev split has only 3 exemplars per subject, and
+  lm-eval's first_n sampler hard-fails at num_fewshot=5
 - Benchmark run artifacts default to `results/baselines/` (committed-friendly, with model id,
   revision, repo commit, date, shot count) — `evals/` is gitignored and NOT regenerable
 
@@ -197,7 +202,7 @@ free-compute course; revisit only with grant/sponsor compute).
 | FLORES-200 kaz↔eng/rus | chrF++ | — | none yet (chrF++ helper in `kazllm.eval.metrics`) | Translation quality |
 
 **Current SOTA (KazMMLU):** Sherkala-Chat-8B at 41.4% (NOT 47.6% — that's avg across 13 tasks);
-Llama-3.1-70B at 55.2%. Full baseline table (8 models, RTX 2070): see README.md.
+Llama-3.1-70B at 55.2%. Baseline table (6 measured on RTX 2070, 2 reported): see README.md.
 
 ## Kazakh Language Notes
 

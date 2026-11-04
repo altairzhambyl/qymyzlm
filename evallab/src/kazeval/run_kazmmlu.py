@@ -166,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
             f"KazMMLU Kazakh-language subset ({N_SUBJECTS} subjects, "
             f"{N_TEST_QUESTIONS} test questions), {args.num_fewshot}-shot from dev, "
             f"multiple_choice loglikelihood over answer letters, bundled kazeval "
-            f"task YAMLs (group {GROUP_TASK})"
+            f"task YAMLs with pinned dataset revision (group {GROUP_TASK})"
         ),
         split="test",
         metrics={"acc": accuracy},

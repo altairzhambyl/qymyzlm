@@ -1,7 +1,7 @@
 [project]
 name = "qymyzlm"
 version = "0.1.0"
-description = "QymyzLM: Morphological memory makes agglutinative LMs punch above their weight"
+description = "QymyzLM: Kazakh language model experiments and reproducible benchmarks"
 requires-python = ">=3.11"
 dependencies = [
     # Core ML

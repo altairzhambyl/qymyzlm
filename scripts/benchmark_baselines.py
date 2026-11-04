@@ -14,7 +14,11 @@ never cut. Truncation events are counted and reported.
 Usage:
     python scripts/benchmark_baselines.py
     python scripts/benchmark_baselines.py --models Qwen/Qwen2.5-0.5B meta-llama/Llama-3.2-1B
-    python scripts/benchmark_baselines.py --quick   # 100 questions per model (fast test)
+    python scripts/benchmark_baselines.py --quick   # first 100 rows, smoke test only
+
+--quick takes the first 100 test rows, which are all Biology (the first config), so
+its accuracy is not a KazMMLU score. Never quote a partial-subset number as one.
+For the full-set adapter comparison see scripts/eval_kazmmlu_full.py.
 """
 
 import argparse
@@ -32,6 +36,9 @@ import torch
 from datasets import get_dataset_config_names, load_dataset
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# Dataset commit; hub lastModified 2025-02-08, so it predates every run in this repo.
+KAZMMLU_REVISION = "567b9e3fea223afc7d7ea98f7255c4c5b140f91a"
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
@@ -61,16 +68,16 @@ KAZ_TEXT = (
 # ── Dataset loading ───────────────────────────────────────────────────────────
 
 
-def load_kazmmlu_kazakh():
-    """Load all KazMMLU Kazakh-language configs (dev + test splits)."""
-    configs = get_dataset_config_names("MBZUAI/KazMMLU")
+def load_kazmmlu_kazakh(revision=KAZMMLU_REVISION):
+    """Load all KazMMLU Kazakh-language configs (dev + test splits) at a pinned revision."""
+    configs = get_dataset_config_names("MBZUAI/KazMMLU", revision=revision)
     kaz_configs = [c for c in configs if "in kaz)" in c.lower()]
 
     all_test, all_dev = [], []
 
     for config in tqdm(kaz_configs, desc="Loading KazMMLU configs"):
         try:
-            ds = load_dataset("MBZUAI/KazMMLU", config)
+            ds = load_dataset("MBZUAI/KazMMLU", config, revision=revision)
             for split_name, target in [("test", all_test), ("dev", all_dev)]:
                 if split_name in ds:
                     for row in ds[split_name]:
@@ -150,8 +157,19 @@ def get_option_token_ids(tokenizer):
 
 
 @torch.inference_mode()
-def evaluate_kazmmlu(model, tokenizer, test_data, dev_data, n_shot=3, quick=False, max_length=2048):
+def evaluate_kazmmlu(
+    model,
+    tokenizer,
+    test_data,
+    dev_data,
+    n_shot=3,
+    quick=False,
+    max_length=2048,
+    per_question=None,
+):
     """Run KazMMLU n-shot next-token letter-logit evaluation.
+
+    If ``per_question`` is a list, one raw record per question is appended to it.
 
     Returns:
         (accuracy, num_questions, stats dict with shot/truncation accounting)
@@ -193,6 +211,17 @@ def evaluate_kazmmlu(model, tokenizer, test_data, dev_data, n_shot=3, quick=Fals
 
         valid = get_valid_options(row)
         pred = max(valid, key=lambda letter: logits[option_tokens[letter]].item())
+
+        if per_question is not None:
+            per_question.append(
+                {
+                    "config": row["_config"],
+                    "pred": pred,
+                    "gold": row["Answer Key"],
+                    "shots_used": shots_used,
+                    "tail_truncated": tail_truncated,
+                }
+            )
 
         if pred == row["Answer Key"]:
             correct += 1
@@ -291,7 +320,8 @@ def markdown_table(results, n_shot=3):
                 f"| {r['fertility']} "
                 f"| {r['speed_tok_s']} |"
             )
-    lines.append("| Random baseline | — | ~25% (4-5 options) | — | — |")
+    # Uniform guess at KAZMMLU_REVISION: (7263/4 + 2607/5) / 9870 = 23.68%.
+    lines.append("| Random guess (`computed`, not run) | — | ~23.7% | — | — |")
 
     lines += [
         "",
@@ -322,7 +352,9 @@ def main():
         default=3,
         help="Few-shot count; 3 is the max with subject-matched shots (dev has 3/subject)",
     )
-    parser.add_argument("--quick", action="store_true", help="100 questions only (fast test)")
+    parser.add_argument(
+        "--quick", action="store_true", help="first 100 rows (Biology only): smoke test"
+    )
     parser.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "auto"])
     parser.add_argument(
         "--max-length",
@@ -361,6 +393,7 @@ def main():
         "max_length": args.max_length,
         "quick": args.quick,
         "dataset": "MBZUAI/KazMMLU (Kazakh subset)",
+        "dataset_revision": KAZMMLU_REVISION,
     }
 
     def save_results():

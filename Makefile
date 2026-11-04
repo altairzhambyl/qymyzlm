@@ -17,8 +17,9 @@ lint:
 
 # PYTHONPATH is cleared: system/ROS dist-packages on PYTHONPATH break pytest
 # plugin autoload (e.g. ROS launch_testing pulls in a missing 'lark').
+# No paths: pyproject testpaths covers tests/, embed/tests and evallab/tests.
 test:
-	PYTHONPATH= $(PY) -m pytest tests -q
+	PYTHONPATH= $(PY) -m pytest -q
 
 # --- Real pipelines ---
 

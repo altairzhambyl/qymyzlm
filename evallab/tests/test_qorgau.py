@@ -157,7 +157,7 @@ def test_load_code_switched_fixture():
     rows = load_code_switched(FIXTURES_DIR / "qorgau_cs_sample.csv")
     assert len(rows) == 2
     assert rows[0].risk_area == "Information Hazards"
-    assert rows[0].kz_version.startswith("Bilim Innovation")
+    assert rows[0].kz_version.startswith("Мысал")  # fixture rows are synthetic, not upstream
     assert "больше всего" in rows[0].code_switched_version  # ru fragment in kk sentence
     assert rows[1].question_type == "original"
 
