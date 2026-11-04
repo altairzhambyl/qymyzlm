@@ -86,6 +86,137 @@ def test_dry_and_real_output_never_mix(full, tmp_path, monkeypatch) -> None:
         full.main(["--dry-run", "--output", str(real)])
 
 
+def _resume_env(
+    full, monkeypatch, commit: str | None = "abc123", dirty: bool | None = False
+) -> None:
+    """A fake GPU machine at a known commit; real model, data and hub access still raise."""
+    _no_network(full, monkeypatch)
+    monkeypatch.setattr(full.torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(full.torch.cuda, "get_device_name", lambda index: "Tesla T4")
+    monkeypatch.setattr(full.bb, "get_repo_commit", lambda: commit)
+    monkeypatch.setattr(full, "_repo_dirty", lambda: dirty)
+
+
+def _finished(full, output: Path, name: str, sha256: str | None, **metadata_changes) -> None:
+    """Write a finished model's files as an earlier session at the same setup would have."""
+    metadata = {
+        "date": "2000-01-01",
+        "repo_commit": "abc123",
+        "repo_dirty": False,
+        "adapter_config_sha256": None,
+        "device": "Tesla T4",
+        "model": full.BASE_MODEL_ID,
+        "model_revision": full.BASE_MODEL_REVISION,
+        "dataset": "MBZUAI/KazMMLU (Kazakh subset)",
+        "dataset_revision": full.bb.KAZMMLU_REVISION,
+        "quantization": "4-bit nf4, fp16 compute, double quant",
+        "n_shot": full.N_SHOT,
+        "max_length": full.MAX_LENGTH,
+    }
+    metadata.update(metadata_changes)
+    output.mkdir(exist_ok=True)
+    summary = {"name": name, "adapter_sha256": sha256, "metadata": metadata}
+    (output / f"{name}.summary.json").write_text(json.dumps(summary))
+    question = {"config": "c", "gold": "A", "pred": "A", "shots_used": 3}
+    (output / f"{name}.questions.jsonl").write_text(json.dumps(question) + "\n")
+
+
+def test_resume_refuses_other_adapter_weights(full, tmp_path, monkeypatch) -> None:
+    _resume_env(full, monkeypatch)
+    adapter = _adapter_dir(tmp_path / "adapter")
+    out = tmp_path / "out"
+    _finished(full, out, "mine", "0" * 64)
+    with pytest.raises(RuntimeError, match="'mine'.*sha256"):
+        full.main(["--output", str(out), "--adapter", f"mine={adapter}"])
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "repo_commit",
+        "device",
+        "model",
+        "model_revision",
+        "dataset",
+        "dataset_revision",
+        "quantization",
+        "n_shot",
+        "max_length",
+    ],
+)
+def test_resume_refuses_changed_metadata(full, tmp_path, monkeypatch, key: str) -> None:
+    _resume_env(full, monkeypatch)
+    _finished(full, tmp_path, "base", None, **{key: "something else"})
+    with pytest.raises(RuntimeError, match=f"'base'.*{key}"):
+        full.main(["--output", str(tmp_path)])
+
+
+def test_resume_refuses_summary_missing_metadata(full, tmp_path, monkeypatch) -> None:
+    _resume_env(full, monkeypatch)
+    _finished(full, tmp_path, "base", None)
+    summary = json.loads((tmp_path / "base.summary.json").read_text())
+    del summary["metadata"]["repo_commit"]
+    (tmp_path / "base.summary.json").write_text(json.dumps(summary))
+    with pytest.raises(RuntimeError, match="'base'.*repo_commit"):
+        full.main(["--output", str(tmp_path)])
+
+
+def test_resume_refuses_unknown_commit(full, tmp_path, monkeypatch) -> None:
+    # Two unknown commits compare equal but prove nothing, e.g. a copy without .git.
+    _resume_env(full, monkeypatch, commit=None)
+    _finished(full, tmp_path, "base", None, repo_commit=None)
+    with pytest.raises(RuntimeError, match="'base'.*commit is unknown"):
+        full.main(["--output", str(tmp_path)])
+
+
+@pytest.mark.parametrize("dirty", [True, None])
+def test_resume_refuses_uncommitted_or_unknown_tree(full, tmp_path, monkeypatch, dirty) -> None:
+    # The same commit proves nothing about the harness if the tree may have been edited.
+    _resume_env(full, monkeypatch, dirty=dirty)
+    _finished(full, tmp_path, "base", None, repo_dirty=dirty)
+    with pytest.raises(RuntimeError, match="'base'.*uncommitted"):
+        full.main(["--output", str(tmp_path)])
+
+
+def test_resume_refuses_other_adapter_config(full, tmp_path, monkeypatch) -> None:
+    # PEFT loads this file too: same weights with another lora_alpha is another model.
+    _resume_env(full, monkeypatch)
+    adapter = _adapter_dir(tmp_path / "adapter")
+    digest = full.sha256_file(adapter / "adapter_model.safetensors")
+    out = tmp_path / "out"
+    _finished(full, out, "mine", digest, adapter_config_sha256="0" * 64)
+    with pytest.raises(RuntimeError, match="'mine'.*adapter_config_sha256"):
+        full.main(["--output", str(out), "--adapter", f"mine={adapter}"])
+
+
+def test_repo_dirty_ignores_untracked_output(full, tmp_path, monkeypatch) -> None:
+    # results/kazmmlu_full is untracked and fills up during a run; it must not block resume.
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return full.subprocess.CompletedProcess(command, 0, stdout=" M scripts/x.py\n")
+
+    monkeypatch.setattr(full.subprocess, "run", fake_run)
+    assert full._repo_dirty() is True
+    assert "--untracked-files=no" in calls[0]
+
+
+def test_resume_accepts_same_setup_on_a_later_day(full, tmp_path, monkeypatch) -> None:
+    _resume_env(full, monkeypatch)
+    monkeypatch.setattr(full.bb, "load_kazmmlu_kazakh", lambda: ([], []))
+    monkeypatch.setattr(full, "_load_tokenizer", lambda: None)
+    adapter = _adapter_dir(tmp_path / "adapter")
+    digest = full.sha256_file(adapter / "adapter_model.safetensors")
+    out = tmp_path / "out"
+    _finished(full, out, "base", None)
+    config_digest = full.sha256_file(adapter / "adapter_config.json")
+    _finished(full, out, "mine", digest, adapter_config_sha256=config_digest)
+    # _load_model still raises, so reaching comparison.json means both were skipped.
+    assert full.main(["--output", str(out), "--adapter", f"mine={adapter}"]) == 0
+    assert set(json.loads((out / "comparison.json").read_text())) == {"mine"}
+
+
 def test_partial_run_is_refused(full, tmp_path) -> None:
     test, dev = full._dry_run_rows()
     with pytest.raises(RuntimeError, match="scored 20 questions, expected 9870"):

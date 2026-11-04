@@ -8,7 +8,9 @@ next-token letter-logit via scripts/benchmark_baselines.py, pinned dataset and m
 Prompts over budget drop their earliest shots, whereas the April kernels cut the prompt's
 end, so comparisons must stay inside one run of this script.
 
-Output in --output; finished models are skipped, so a killed session can be resumed:
+Output in --output; finished models are skipped, so a killed session can be resumed. Resume
+refuses a finished model whose adapter sha256 or run metadata (all but the date) differs, and
+refuses any resume from an uncommitted or unknown tree:
     <name>.summary.json      accuracy, Wilson 95% interval, per-subject accuracy, adapter sha256
     <name>.questions.jsonl   one raw prediction per question, for paired comparison
     comparison.json          every adapter against base, with discordant-pair counts
@@ -36,6 +38,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -68,6 +71,8 @@ BASE_MODEL_REVISION = "da87bfb608c14b7cf20ba1ce41287e8de496c0cd"  # hub lastModi
 EXPECTED_N_QUESTIONS = 9870
 N_SHOT = 3
 MAX_LENGTH = 2048
+# A resumed session may start on a later day; anything else changing breaks "same harness".
+RESUME_IGNORED_METADATA = {"date"}
 
 # Kaggle kernel-output hashes (2026-11-04). The dream adapter's weights were not downloaded,
 # so it has no known hash; its sha256 is still recorded in the summary.
@@ -218,6 +223,21 @@ def write_comparison(names: list[str], output_dir: Path) -> dict:
     return comparison
 
 
+def _repo_dirty() -> bool | None:
+    """Whether tracked files have uncommitted edits, or None if git cannot say."""
+    try:
+        proc = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            capture_output=True,
+            text=True,
+            cwd=_SCRIPT_DIR,
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return bool(proc.stdout.strip()) if proc.returncode == 0 else None
+
+
 def _load_tokenizer():
     from transformers import AutoTokenizer
 
@@ -230,7 +250,11 @@ def _load_tokenizer():
 
 
 def _load_model(adapter_path: Path | None):
-    """Fresh 4-bit base (plus adapter) on GPU 0, matching the April kernels' model setup."""
+    """Fresh 4-bit base (plus adapter) on GPU 0, with the April kernels' quantization settings.
+
+    Not their full setup: the session 1 kernel also applied prepare_model_for_kbit_training
+    and LoRA wrapping before its baseline eval. The effect of that difference is unmeasured.
+    """
     from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 
     model = AutoModelForCausalLM.from_pretrained(
@@ -307,6 +331,38 @@ def _summaries_by_kind(output_dir: Path) -> tuple[set[str], set[str]]:
     return real, rehearsal
 
 
+def check_resume(name: str, output_dir: Path, adapter_sha256: str | None, metadata: dict) -> None:
+    """Refuse to reuse a finished model unless it came from this exact setup."""
+    summary = json.loads((output_dir / f"{name}.summary.json").read_text(encoding="utf-8"))
+    stored_sha256 = summary.get("adapter_sha256")
+    if stored_sha256 != adapter_sha256:
+        raise RuntimeError(
+            f"cannot resume {name!r}: stored sha256 {stored_sha256} differs from "
+            f"current {adapter_sha256}; use an empty output directory"
+        )
+    if metadata["repo_commit"] is None:
+        raise RuntimeError(
+            f"cannot resume {name!r}: this repo's commit is unknown, so the finished run "
+            "cannot be matched to it; use an empty output directory"
+        )
+    if metadata["repo_dirty"] is not False:
+        raise RuntimeError(
+            f"cannot resume {name!r}: uncommitted edits, or a tree git cannot read, mean the "
+            "harness may differ from the finished run; use an empty output directory"
+        )
+    stored = summary.get("metadata", {})
+    changed = sorted(
+        key
+        for key in (stored.keys() | metadata.keys()) - RESUME_IGNORED_METADATA
+        if stored.get(key) != metadata.get(key)
+    )
+    if changed:
+        details = ", ".join(f"{k}: {stored.get(k)!r} -> {metadata.get(k)!r}" for k in changed)
+        raise RuntimeError(
+            f"cannot resume {name!r}: metadata differs ({details}); use an empty output directory"
+        )
+
+
 def dry_run(adapters: list[tuple[str, Path]], output_dir: Path) -> dict:
     """Rehearse the full flow with no network, GPU or model weights."""
     real, _ = _summaries_by_kind(output_dir)
@@ -342,9 +398,10 @@ def run(adapters: list[tuple[str, Path]], output_dir: Path) -> None:
         raise RuntimeError(f"{output_dir} holds dry-run output; use an empty directory")
     digests = {name: check_adapter(name, path) for name, path in adapters}
     paths: dict[str, Path | None] = {BASE_NAME: None, **dict(adapters)}
-    metadata = {
+    run_metadata = {
         "date": time.strftime("%Y-%m-%d"),
         "repo_commit": bb.get_repo_commit(),
+        "repo_dirty": _repo_dirty(),
         "device": torch.cuda.get_device_name(0),
         "model": BASE_MODEL_ID,
         "model_revision": BASE_MODEL_REVISION,
@@ -354,6 +411,18 @@ def run(adapters: list[tuple[str, Path]], output_dir: Path) -> None:
         "n_shot": N_SHOT,
         "max_length": MAX_LENGTH,
     }
+    # Per model: PEFT loads adapter_config.json too, and the known hashes cover weights only.
+    metadata = {
+        name: {
+            **run_metadata,
+            "adapter_config_sha256": path and sha256_file(path / "adapter_config.json"),
+        }
+        for name, path in paths.items()
+    }
+    # Before any download or GPU time: a mismatch must not cost a model load to discover.
+    for name in paths:
+        if name in finished:
+            check_resume(name, output_dir, digests.get(name), metadata[name])
     test_data, dev_data = bb.load_kazmmlu_kazakh()
     tokenizer = _load_tokenizer()
     for name, path in paths.items():
@@ -363,7 +432,14 @@ def run(adapters: list[tuple[str, Path]], output_dir: Path) -> None:
         print(f"Evaluating {name} ...")
         model = _load_model(path)
         evaluate_and_save(
-            name, model, tokenizer, test_data, dev_data, output_dir, digests.get(name), metadata
+            name,
+            model,
+            tokenizer,
+            test_data,
+            dev_data,
+            output_dir,
+            digests.get(name),
+            metadata[name],
         )
         del model
         torch.cuda.empty_cache()
